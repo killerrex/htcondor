@@ -66,6 +66,10 @@ extern const char* JOB_EXECUTION_OVERLAY_AD_FILENAME;
 extern const char* MACHINE_AD_FILENAME;
 const char* CHIRP_CONFIG_FILENAME = ".chirp.config";
 
+// the IP for IO proxy server is the default docker bridge network.
+const char* DOCKER_DEFAULT_IOPROXY_IP = "172.17.0.1";
+
+
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
 #	define file_contains contains_anycase
@@ -2817,6 +2821,31 @@ JICShadow::initShadowInfo( ClassAd* ad )
 }
 
 
+static void
+getDockerBridge(condor_sockaddr &dockerInterface)
+{
+	std::string bridge_ip;
+
+	char * bridge_addr = param("DOCKER_IOPROXY_ADDR");
+	if (bridge_addr) {
+		std::string ipv4, ipv6;
+		bool ok = network_interface_to_ip("DOCKER_IOPROXY_ADDR", bridge_addr, ipv4, ipv6, bridge_ip);
+		if( !ok ) {
+			bridge_ip = DOCKER_DEFAULT_IOPROXY_IP;
+			dprintf(D_ALWAYS,
+					"Failed to determine Docker Bridge IP address using DOCKER_IOPROXY_ADDR=%s [Default to %s]\n",
+					bridge_addr, bridge_ip);
+		} else {
+			dprintf(D_ALWAYS, "Starter will use %s as docker bridge network.\n", bridge_ip.c_str());
+		}
+		free(bridge_addr);
+	} else {
+		bridge_ip = DOCKER_DEFAULT_IOPROXY_IP;
+		dprintf(D_ALWAYS, "Starter will use default docker bridge network.\n");
+	}
+	dockerInterface.from_ip_string(bridge_ip);
+}
+
 
 bool
 JICShadow::initIOProxy( void )
@@ -2891,14 +2920,15 @@ JICShadow::initIOProxy( void )
 		want_delayed ? "true" : "false");
 	if( want_io_proxy || want_updates || want_delayed || job_universe==CONDOR_UNIVERSE_JAVA ) {
 		m_wrote_chirp_config = true;
+		condor_sockaddr dockerInterface;
 		condor_sockaddr *bindTo = NULL;
-		struct in_addr addr;
-		addr.s_addr = htonl(0xac110001);
-		condor_sockaddr dockerInterface(addr);
-
+		
+		// Connect to docker default bridge network
 		bool wantDocker = false;
 		job_ad->LookupBool(ATTR_WANT_DOCKER, wantDocker);
 		if (wantDocker) {
+			// Use the docker bridge network to listen with the io proxy
+			getDockerBridge(dockerInterface);
 			bindTo = &dockerInterface;
 		}
 

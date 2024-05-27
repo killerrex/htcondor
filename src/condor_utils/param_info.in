@@ -5309,6 +5309,11 @@ win32_default=0
 type=int
 description=How often to query docker for the size of the image cache.  0 disables the query entirely
 
+[DOCKER_IOPROXY_ADDR]
+default=172.17.0.1
+description=IP Of the IO Proxy address. Default value is the docker default bridge network
+type=string
+
 [OPENMPI_INSTALL_PATH]
 default=/usr/lib64/openmpi
 type=string
