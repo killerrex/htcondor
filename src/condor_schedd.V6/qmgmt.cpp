@@ -212,10 +212,10 @@ extern bool warn_domain_for_OwnerCheck;
 extern bool job_owner_must_be_UidDomain; // only users who are @$(UID_DOMAIN) may submit.
 extern bool allow_submit_from_known_users_only; // if false, create UseRec for new users when they submit
 
-// Hash table with an entry for every job owner that
+// set with an entry for every job owner that
 // has existed in the queue since this schedd has been
 // running.  Used by SuperUserAllowedToSetOwnerTo().
-static HashTable<std::string,int> owner_history(hashFunction);
+static std::set<std::string> owner_history;
 
 int		do_Q_request(QmgmtPeer &);
 #if 0 // not used?
@@ -265,7 +265,7 @@ Timeslice   PrioRecArrayTimeslice;
 prio_rec	PrioRecArray[INITIAL_MAX_PRIO_REC];
 prio_rec	* PrioRec = &PrioRecArray[0];
 int			N_PrioRecs = 0;
-HashTable<int,int> *PrioRecAutoClusterRejected = nullptr;
+std::map<int,int> PrioRecAutoClusterRejected;
 int BuildPrioRecArrayTid = -1;
 
 static int 	MAX_PRIO_REC=INITIAL_MAX_PRIO_REC ;	// INITIAL_MAX_* in prio_rec.h
@@ -3162,7 +3162,7 @@ bool isQueueSuperUser(const JobQueueUserRec * user)
 
 static void
 AddOwnerHistory(const std::string &user) {
-	owner_history.insert(user,1);
+	owner_history.emplace(user);
 }
 
 static bool
@@ -3182,8 +3182,7 @@ SuperUserAllowedToSetOwnerTo(const std::string &user) {
 		return false;
 	}
 
-	int junk = 0;
-	if( owner_history.lookup(user,junk) != -1 ) {
+	if (owner_history.contains(user)) {
 		return true;
 	}
 	dprintf(D_FULLDEBUG,"Queue super user not allowed to set owner to %s, because this instance of the schedd has never seen that user submit any jobs.\n",user.c_str());
@@ -9410,15 +9409,8 @@ void BuildPrioRecArrayPeriodic(int /* tid */)
  */
 bool BuildPrioRecArray(bool no_match_found /*default false*/) {
 
-		// caller expects PrioRecAutoClusterRejected to be instantiated
-		// (and cleared)
-	if( ! PrioRecAutoClusterRejected ) {
-		PrioRecAutoClusterRejected = new HashTable<int,int>(hashFuncInt);
-		ASSERT( PrioRecAutoClusterRejected );
-	}
-	else {
-		PrioRecAutoClusterRejected->clear();
-	}
+		// caller expects PrioRecAutoClusterRejected to be cleared
+	PrioRecAutoClusterRejected.clear();
 
 	if( !PrioRecArrayIsDirty ) {
 		dprintf(D_FULLDEBUG,
@@ -9565,8 +9557,7 @@ void FindRunnableJob(PROC_ID & jobid, ClassAd* my_match_ad,
 				continue;
 			}	
 
-			int junk = 0; // don't care about the value
-			if ( PrioRecAutoClusterRejected->lookup( p->auto_cluster_id, junk ) == 0 ) {
+			if (PrioRecAutoClusterRejected.contains(p->auto_cluster_id)) {
 					// We have already failed to match a job from this same
 					// autocluster with this machine.  Skip it.
 				continue;
@@ -9611,7 +9602,7 @@ void FindRunnableJob(PROC_ID & jobid, ClassAd* my_match_ad,
 					// THIS IS A DANGEROUS ASSUMPTION - what if this job is no longer
 					// part of this autocluster?  TODO perhaps we should verify this
 					// job is still part of this autocluster here.
-				PrioRecAutoClusterRejected->insert( p->auto_cluster_id, 1 );
+				PrioRecAutoClusterRejected.emplace(p->auto_cluster_id,1);
 					// Move along to the next job in the prio rec array
 				continue;
 			}
@@ -9679,8 +9670,7 @@ void FindRunnableJob(PROC_ID & jobid, ClassAd* my_match_ad,
 					dprintf(D_FULLDEBUG,
 							"ConcurrencyLimits do not match, cannot "
 							"reuse claim\n");
-					PrioRecAutoClusterRejected->
-						insert(p->auto_cluster_id, 1);
+					PrioRecAutoClusterRejected.emplace(p->auto_cluster_id,1);
 					continue;
 				}
 			}

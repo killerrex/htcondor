@@ -274,6 +274,7 @@ endif ()
 			condor_pl_test(test_dagman_script_debug_file "Test DAGMan ability to capture script standard output streams" "dagman;quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
 			condor_pl_test(test_startd_cron "Test startd cron one shots write to start log" "quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
 			condor_pl_test(test_dagman_script_macros "Test DAGMan script macros" "dagman;quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
+			condor_pl_test(test_dagman_inherit_attrs "Test DAGMan attribute inheritance" "dagman;quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
 
 			# These tests require Python 3.6 or later.
 			if (PYTHON3_VERSION_MINOR GREATER_EQUAL 6)
@@ -305,6 +306,8 @@ endif ()
 
 				condor_pl_test(test_dont_queue_small_sandboxes "Test not using transfer queue for small transfers" "quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
 				condor_pl_test(test_epoch_attrs "Test our work-around for ElasticSearch not doing joins" "quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
+
+				condor_pl_test(test_success_exit_code_xfer "Make sure we still get logs if success_exit_code is set" "quick;ctest" CTEST DEPENDS "src/condor_tests/ornithology;src/condor_tests/conftest.py")
 
 				if(NOT EMULATED_PLATFORM)
 					# The emulated platforms are too slow to run these tests.

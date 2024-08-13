@@ -81,6 +81,7 @@ Depends: adduser,
          libjs-bootstrap,
          libjs-jquery,
          ${lib:Depends},
+         condor-upgrade-checks,
          ${misc:Depends},
          ${perl:Depends},
          ${python3:Depends},
@@ -196,7 +197,7 @@ Description: distributed workload management system - single node configuration
  for the first time. It only configures the IPv4 loopback address, turns on
  basic security, and shortens many timers to be more responsive.
 
-Package: ap
+Package: condor-ap
 Architecture: any
 Section: science
 Depends: condor (= ${binary:Version}),

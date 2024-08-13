@@ -14,8 +14,8 @@
 
 # Use devtoolset 11 for EL7
 %define devtoolset 11
-# Use gcc-toolset 12 for EL8
-%define gcctoolset 12
+# Use gcc-toolset 13 for EL8 and later
+%define gcctoolset 13
 
 Summary: HTCondor: High Throughput Computing
 Name: condor
@@ -126,7 +126,7 @@ BuildRequires: which
 BuildRequires: devtoolset-%{devtoolset}-toolchain
 %endif
 
-%if 0%{?rhel} == 8 && 0%{?gcctoolset}
+%if 0%{?rhel} >= 8 && 0%{?gcctoolset}
 BuildRequires: which
 BuildRequires: gcc-toolset-%{gcctoolset}
 %endif
@@ -267,6 +267,7 @@ Requires: scitokens-cpp >= 0.6.2
 Requires: systemd-libs
 %endif
 Requires: rsync
+Requires: condor-upgrade-checks
 
 # Support OSDF client
 %if 0%{?rhel} == 7
@@ -624,12 +625,10 @@ export CC=$(which cc)
 export CXX=$(which c++)
 %endif
 
-%if 0%{?rhel} == 8 && 0%{?gcctoolset}
+%if 0%{?rhel} >= 8 && 0%{?gcctoolset}
 . /opt/rh/gcc-toolset-%{gcctoolset}/enable
 export CC=$(which cc)
 export CXX=$(which c++)
-# gcc-toolset does not include gcc-annobin.so
-%undefine _annotated_build
 %endif
 
 # build man files
@@ -768,6 +767,7 @@ mkdir -p -m0700 %{buildroot}/%{_sysconfdir}/condor/tokens.d
 
 populate %_sysconfdir/condor/config.d %{buildroot}/usr/share/doc/condor-%{version}/examples/00-htcondor-9.0.config
 populate %_sysconfdir/condor/config.d %{buildroot}/usr/share/doc/condor-%{version}/examples/00-minicondor
+populate %_sysconfdir/condor/config.d %{buildroot}/usr/share/doc/condor-%{version}/examples/00-access-point
 populate %_sysconfdir/condor/config.d %{buildroot}/usr/share/doc/condor-%{version}/examples/00-kbdd
 populate %_sysconfdir/condor/config.d %{buildroot}/usr/share/doc/condor-%{version}/examples/50ec2.config
 
@@ -1270,6 +1270,7 @@ rm -rf %{buildroot}
 %_includedir/classad/debug.h
 %_includedir/classad/exprList.h
 %_includedir/classad/exprTree.h
+%_includedir/classad/flat_set.h
 %_includedir/classad/fnCall.h
 %_includedir/classad/indexfile.h
 %_includedir/classad/jsonSink.h
@@ -1397,6 +1398,8 @@ rm -rf %{buildroot}
 %files -n minicondor
 %config(noreplace) %_sysconfdir/condor/config.d/00-minicondor
 
+%files ap
+%config(noreplace) %_sysconfdir/condor/config.d/00-access-point
 
 %post
 /sbin/ldconfig
@@ -1447,6 +1450,32 @@ fi
 /bin/systemctl try-restart condor.service >/dev/null 2>&1 || :
 
 %changelog
+* Thu Aug 08 2024 Tim Theisen <tim@cs.wisc.edu> - 23.9.6-1
+- Add config knob to not have cgroups count kernel memory for jobs on EL9
+- Remove support for numeric unit suffixes (k,M,G) in ClassAd expressions
+- In submit files, request_disk & request_memory still accept unit suffixes
+- Hide GPUs not allocated to the job on cgroup v2 systems such as EL9
+- DAGMan can now produce credentials when using direct submission
+- Singularity jobs have a contained home directory when file transfer is on
+- Avoid using IPv6 link local addresses when resolving hostname to IP addr
+- New 'htcondor credential' command to aid in debugging
+
+* Thu Aug 08 2024 Tim Theisen <tim@cs.wisc.edu> - 23.0.14-1
+- Docker and Container jobs run on EPs that match AP's CPU architecture
+- Fixed premature cleanup of credentials by the condor_credd
+- Fixed bug where a malformed SciToken could cause a condor_schedd crash
+- Fixed crash in condor_annex script
+- Fixed daemon crash after IDTOKEN request is approved by the collector
+
+* Thu Jun 27 2024 Tim Theisen <tim@cs.wisc.edu> - 23.8.1-1
+- Add new condor-ap package to facilitate Access Point installation
+- HTCondor Docker images are now based on Alma Linux 9
+- HTCondor Docker images are now available for the arm64 CPU architecture
+- The user can now choose which submit method DAGMan will use
+- Can add custom attributes to the User ClassAd with condor_qusers -edit
+- Add use-projection option to condor_gangliad to reduce memory footprint
+- Fix bug where interactive submit does not work on cgroup v2 systems (EL9)
+
 * Thu Jun 13 2024 Tim Theisen <tim@cs.wisc.edu> - 23.0.12-1
 - Remote condor_history queries now work the same as local queries
 - Improve error handling when submitting to a remote scheduler via ssh
